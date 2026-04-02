@@ -58,20 +58,48 @@ def get_analytics_data():
         st.error(f"Database error while fetching analytics: {str(e)}")
         return {}, {}
 
+def init_search_stats():
+    """Initialize per-session search counters for analytics."""
+    if "search_stats" not in st.session_state:
+        st.session_state.search_stats = {
+            "total_attempts": 0,
+            "total_success": 0,
+            "by_type": {
+                "single_node_disease": {"attempts": 0, "success": 0},
+                "single_node_plant": {"attempts": 0, "success": 0},
+                "single_node_snp": {"attempts": 0, "success": 0},
+                "relationship_disease_to_snp": {"attempts": 0, "success": 0},
+                "relationship_snp_to_plant": {"attempts": 0, "success": 0},
+            },
+        }
 
-def search_disease_with_snps(disease_id):
+
+def log_search(query_type, success):
+    """Log a search attempt + whether it returned results."""
+    init_search_stats()
+    st.session_state.search_stats["total_attempts"] += 1
+    if success:
+        st.session_state.search_stats["total_success"] += 1
+    if query_type not in st.session_state.search_stats["by_type"]:
+        st.session_state.search_stats["by_type"][query_type] = {"attempts": 0, "success": 0}
+    st.session_state.search_stats["by_type"][query_type]["attempts"] += 1
+    if success:
+        st.session_state.search_stats["by_type"][query_type]["success"] += 1
+
+
+def search_disease_with_snps(disease_id, limit=200):
     query = """
     MATCH (d:disease {id: $id})
     OPTIONAL MATCH (d)-[r:ASSOCIATED_WITH]->(s:rsid)
     RETURN d, r, s
-    LIMIT 1000
+    LIMIT $limit
     """
 
     data = {"disease": None, "snps": []}
 
     try:
         with driver.session() as session:
-            results = session.run(query, {"id": disease_id})
+            results = session.run(query, {"id": disease_id, "limit": limit})
 
             for record in results:
                 d = record["d"]
@@ -94,19 +122,19 @@ def search_disease_with_snps(disease_id):
     return data
 
 
-def search_snp_with_plants(snp_id):
+def search_snp_with_plants(snp_id, limit=200):
     query = """
     MATCH (s:rsid {id: $id})
     OPTIONAL MATCH (s)-[r:ASSOCIATED_WITH_PLANT]->(p:plant)
     RETURN s, r, p
-    LIMIT 1000
+    LIMIT $limit
     """
 
     data = {"snp": None, "plants": []}
 
     try:
         with driver.session() as session:
-            results = session.run(query, {"id": snp_id})
+            results = session.run(query, {"id": snp_id, "limit": limit})
 
             for record in results:
                 s = record["s"]
@@ -256,12 +284,17 @@ with st.sidebar:
     st.markdown('<div class="sidebar-header">🔍 Navigation</div>', unsafe_allow_html=True)
     
     # Add search statistics
+    init_search_stats()
+    _stats = st.session_state.search_stats
+    _total_attempts = _stats.get("total_attempts", 0)
+    _total_success = _stats.get("total_success", 0)
+    _success_rate = (float(_total_success) / _total_attempts * 100.0) if _total_attempts else 0.0
     st.markdown("### 📊 Quick Stats")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Searches", "0", help="Total searches performed")
+        st.metric("Total Searches", f"{_total_attempts:,}", help="Total searches performed")
     with col2:
-        st.metric("Success Rate", "0%", help="Search success rate")
+        st.metric("Success Rate", f"{_success_rate:.1f}%", help="Search success rate")
     
     st.markdown("---")
     
@@ -356,7 +389,15 @@ if menu == "🔍 Single Node Search":
                     "🧬 SNP": "rsid"
                 }
                 
+                query_type_map = {
+                    "🏥 Disease": "single_node_disease",
+                    "🌿 Plant": "single_node_plant",
+                    "🧬 SNP": "single_node_snp",
+                }
+                query_type = query_type_map[option]
+                
                 result = search_node(label_map[option], node_id.strip())
+                log_search(query_type, bool(result))
                 
                 if result:
                     st.markdown('<div class="success-message">✅ Node Found Successfully!</div>', unsafe_allow_html=True)
@@ -443,6 +484,13 @@ elif menu == "🔗 Relationship Search":
     
     with col2:
         st.markdown("### 🎯 Quick Actions")
+        max_results = st.slider(
+            "Max results to fetch (SNP/plant relationships)",
+            min_value=10,
+            max_value=2000,
+            value=200,
+            step=10
+        )
         if st.button("🔎 Search Relationships", type="primary", use_container_width=True):
             if not input_id.strip():
                 st.error("⚠️ Please enter an ID")
@@ -450,7 +498,8 @@ elif menu == "🔗 Relationship Search":
             
             with st.spinner("🔍 Searching relationships..."):
                 if option == "🏥 Disease → SNP":
-                    data = search_disease_with_snps(input_id.strip())
+                    data = search_disease_with_snps(input_id.strip(), limit=max_results)
+                    log_search("relationship_disease_to_snp", bool(data["disease"]))
                     
                     if data["disease"]:
                         st.markdown('<div class="success-message">✅ Disease and relationships found!</div>', unsafe_allow_html=True)
@@ -464,23 +513,41 @@ elif menu == "🔗 Relationship Search":
                         
                         # Display associated SNPs
                         st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                        st.subheader(f"🧬 Associated SNPs ({len(data['snps'])} found)")
-                        
-                        if data["snps"]:
-                            for i, item in enumerate(data["snps"], 1):
+                        fetched_snps = data["snps"]
+                        fetched_count = len(fetched_snps)
+                        st.subheader(f"🧬 Associated SNPs (fetched {fetched_count})")
+
+                        display_cap = min(fetched_count, 200)  # Keep UI responsive
+                        display_snps = fetched_snps[:display_cap]
+
+                        if display_snps:
+                            summary_rows = []
+                            for item in display_snps:
+                                snp_props = item.get("snp") or {}
+                                summary_rows.append({
+                                    "snp_id": snp_props.get("id"),
+                                    "has_relation": bool(item.get("relation"))
+                                })
+
+                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            summary_df = pd.DataFrame(summary_rows)
+                            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+                            # Render only a small number of full detail cards (UI can hang otherwise)
+                            st.markdown("---")
+                            st.markdown("**SNP Details (sample)**")
+                            detail_cap = min(display_cap, 10)
+                            for i, item in enumerate(display_snps[:detail_cap], 1):
                                 st.markdown(f"**SNP {i}:**")
-                                
-                                # SNP details
                                 snp_df = pd.DataFrame(list(item["snp"].items()), columns=["Property", "Value"])
                                 st.dataframe(snp_df, use_container_width=True, hide_index=True)
-                                
-                                # Relationship attributes
+
                                 if item["relation"]:
                                     st.markdown("**🔗 Relationship Attributes:**")
                                     rel_df = pd.DataFrame(list(item["relation"].items()), columns=["Property", "Value"])
                                     st.dataframe(rel_df, use_container_width=True, hide_index=True)
-                                
-                                if i < len(data["snps"]):
+
+                                if i < detail_cap:
                                     st.markdown("---")
                         else:
                             st.markdown('<div class="warning-message">⚠️ No associated SNPs found for this disease.</div>', unsafe_allow_html=True)
@@ -488,10 +555,14 @@ elif menu == "🔗 Relationship Search":
                         st.markdown('</div>', unsafe_allow_html=True)
                         
                         # Export functionality
-                        if st.button("📥 Export All Results", use_container_width=True):
+                        if st.button("📥 Export Results (first 200)", use_container_width=True):
                             # Create combined data for export
                             export_data = []
-                            for item in data["snps"]:
+                            export_cap = min(len(data["snps"]), 200)
+                            if len(data["snps"]) > export_cap:
+                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+
+                            for item in data["snps"][:export_cap]:
                                 row = {**data["disease"], **item["snp"]}
                                 if item["relation"]:
                                     row.update({f"rel_{k}": v for k, v in item["relation"].items()})
@@ -510,7 +581,8 @@ elif menu == "🔗 Relationship Search":
                         st.markdown('<div class="error-message">❌ Disease not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
                 
                 elif option == "🧬 SNP → Plant":
-                    data = search_snp_with_plants(input_id.strip())
+                    data = search_snp_with_plants(input_id.strip(), limit=max_results)
+                    log_search("relationship_snp_to_plant", bool(data["snp"]))
                     
                     if data["snp"]:
                         st.markdown('<div class="success-message">✅ SNP and relationships found!</div>', unsafe_allow_html=True)
@@ -524,23 +596,40 @@ elif menu == "🔗 Relationship Search":
                         
                         # Display associated plants
                         st.markdown('<div class="result-card">', unsafe_allow_html=True)
-                        st.subheader(f"🌿 Associated Plants ({len(data['plants'])} found)")
+                        fetched_plants = data["plants"]
+                        fetched_count = len(fetched_plants)
+                        st.subheader(f"🌿 Associated Plants (fetched {fetched_count})")
                         
-                        if data["plants"]:
-                            for i, item in enumerate(data["plants"], 1):
+                        display_cap = min(fetched_count, 200)  # Keep UI responsive
+                        display_plants = fetched_plants[:display_cap]
+                        if display_plants:
+                            summary_rows = []
+                            for item in display_plants:
+                                plant_props = item.get("plant") or {}
+                                summary_rows.append({
+                                    "plant_id": plant_props.get("id"),
+                                    "has_relation": bool(item.get("relation"))
+                                })
+
+                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            summary_df = pd.DataFrame(summary_rows)
+                            st.dataframe(summary_df, use_container_width=True, hide_index=True)
+
+                            # Render only a small number of full detail cards (UI can hang otherwise)
+                            st.markdown("---")
+                            st.markdown("**Plant Details (sample)**")
+                            detail_cap = min(display_cap, 10)
+                            for i, item in enumerate(display_plants[:detail_cap], 1):
                                 st.markdown(f"**Plant {i}:**")
-                                
-                                # Plant details
                                 plant_df = pd.DataFrame(list(item["plant"].items()), columns=["Property", "Value"])
                                 st.dataframe(plant_df, use_container_width=True, hide_index=True)
-                                
-                                # Relationship attributes
+
                                 if item["relation"]:
                                     st.markdown("**🔗 Relationship Attributes:**")
                                     rel_df = pd.DataFrame(list(item["relation"].items()), columns=["Property", "Value"])
                                     st.dataframe(rel_df, use_container_width=True, hide_index=True)
-                                
-                                if i < len(data["plants"]):
+
+                                if i < detail_cap:
                                     st.markdown("---")
                         else:
                             st.markdown('<div class="warning-message">⚠️ No associated plants found for this SNP.</div>', unsafe_allow_html=True)
@@ -548,9 +637,13 @@ elif menu == "🔗 Relationship Search":
                         st.markdown('</div>', unsafe_allow_html=True)
                         
                         # Export functionality
-                        if st.button("📥 Export All Results", use_container_width=True):
+                        if st.button("📥 Export Results (first 200)", use_container_width=True):
+                            export_cap = min(len(data["plants"]), 200)
+                            if len(data["plants"]) > export_cap:
+                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+
                             export_data = []
-                            for item in data["plants"]:
+                            for item in data["plants"][:export_cap]:
                                 row = {**data["snp"], **item["plant"]}
                                 if item["relation"]:
                                     row.update({f"rel_{k}": v for k, v in item["relation"].items()})
@@ -594,6 +687,39 @@ elif menu == "📈 Analytics Dashboard":
     """, unsafe_allow_html=True)
     
     st.markdown('<div class="info-message">📊 Analytics and insights coming soon! This dashboard will show search statistics, data distributions, and relationship patterns.</div>', unsafe_allow_html=True)
+    
+    # Session-based search analytics (tracked via st.session_state)
+    init_search_stats()
+    _stats = st.session_state.search_stats
+    _total_attempts = _stats.get("total_attempts", 0)
+    _total_success = _stats.get("total_success", 0)
+    _success_rate = (float(_total_success) / _total_attempts * 100.0) if _total_attempts else 0.0
+    
+    st.markdown("### 🔍 Search Usage (This Session)")
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Total Searches", f"{_total_attempts:,}")
+    with col2:
+        st.metric("Search % (Success Rate)", f"{_success_rate:.1f}%")
+    
+    by_type = _stats.get("by_type", {})
+    breakdown_rows = []
+    for qtype, row in by_type.items():
+        attempts = row.get("attempts", 0)
+        success = row.get("success", 0)
+        rate = (float(success) / attempts * 100.0) if attempts else 0.0
+        share = (float(attempts) / _total_attempts * 100.0) if _total_attempts else 0.0
+        breakdown_rows.append({
+            "Query Type": qtype,
+            "Attempts": attempts,
+            "Successes": success,
+            "Success %": f"{rate:.1f}%",
+            "Used %": f"{share:.1f}%",
+        })
+    
+    if breakdown_rows:
+        breakdown_df = pd.DataFrame(breakdown_rows)
+        st.dataframe(breakdown_df, use_container_width=True, hide_index=True)
     
     # Fetch real analytics data
     with st.spinner("📊 Loading analytics data..."):
