@@ -556,12 +556,12 @@ elif menu == "📈 Analytics Dashboard":
     
     with col1:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Total Nodes", "0", "📈")
+        st.metric("Total Nodes", "47,625", "📈")
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Total Relationships", "0", "🔗")
+        st.metric("Total Relationships", "304,464", "🔗")
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col3:
@@ -579,4 +579,4 @@ with col1:
 with col2:
     st.caption(f"⏰ Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 with col3:
-    st.caption("📧 Support: admin@example.com")
+    st.caption("📧 Support: prateek23391@iiitd.ac.in, nitesh23356@iiitd.ac.in")
