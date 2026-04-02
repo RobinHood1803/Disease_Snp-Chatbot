@@ -99,7 +99,7 @@ st.markdown("""
     .main-header {
         font-size: 2.5rem;
         font-weight: 700;
-        color: #1f77b4;
+        color: #667eea;
         text-align: center;
         margin-bottom: 2rem;
         padding: 1rem;
@@ -109,61 +109,73 @@ st.markdown("""
         background-clip: text;
     }
     .search-container {
-        background: #f8f9fa;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
         padding: 2rem;
-        border-radius: 10px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 15px;
+        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1);
         margin: 1rem 0;
+        border: 1px solid rgba(102, 126, 234, 0.2);
     }
     .result-card {
-        background: white;
+        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
         padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 12px;
+        box-shadow: 0 4px 15px rgba(252, 182, 159, 0.2);
         margin: 1rem 0;
-        border-left: 4px solid #1f77b4;
+        border-left: 4px solid #667eea;
+        border: 1px solid rgba(252, 182, 159, 0.3);
     }
     .success-message {
-        background: #d4edda;
-        color: #155724;
+        background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+        color: #0d5d0d;
         padding: 1rem;
-        border-radius: 5px;
-        border: 1px solid #c3e6cb;
+        border-radius: 8px;
+        border: 1px solid rgba(150, 230, 161, 0.5);
+        box-shadow: 0 2px 10px rgba(150, 230, 161, 0.2);
     }
     .error-message {
-        background: #f8d7da;
-        color: #721c24;
+        background: linear-gradient(135deg, #feb692 0%, #ea5455 100%);
+        color: #ffffff;
         padding: 1rem;
-        border-radius: 5px;
-        border: 1px solid #f5c6cb;
+        border-radius: 8px;
+        border: 1px solid rgba(234, 84, 85, 0.5);
+        box-shadow: 0 2px 10px rgba(234, 84, 85, 0.2);
     }
     .warning-message {
-        background: #fff3cd;
-        color: #856404;
+        background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
+        color: #2d3436;
         padding: 1rem;
-        border-radius: 5px;
-        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        border: 1px solid rgba(253, 203, 110, 0.5);
+        box-shadow: 0 2px 10px rgba(253, 203, 110, 0.2);
     }
     .info-message {
-        background: #d1ecf1;
-        color: #0c5460;
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #2d3436;
         padding: 1rem;
-        border-radius: 5px;
-        border: 1px solid #bee5eb;
+        border-radius: 8px;
+        border: 1px solid rgba(254, 214, 227, 0.5);
+        box-shadow: 0 2px 10px rgba(168, 237, 234, 0.2);
     }
     .metric-card {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         padding: 1.5rem;
-        border-radius: 10px;
+        border-radius: 15px;
         text-align: center;
         margin: 0.5rem 0;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        border: 1px solid rgba(118, 75, 162, 0.3);
     }
     .sidebar-header {
         font-size: 1.3rem;
         font-weight: 600;
-        color: #1f77b4;
+        color: #667eea;
         margin-bottom: 1rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
     }
     .search-button {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -173,15 +185,27 @@ st.markdown("""
         border-radius: 25px;
         font-weight: 600;
         transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
     }
     .search-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    }
+    /* Remove default Streamlit white background */
+    .stApp {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    }
+    /* Style dataframes to blend with theme */
+    .dataframe {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="main-header">🧬 Knowledge Graph Search System</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header" style="font-size: 3rem; font-weight: 800; text-shadow: 3px 3px 6px rgba(0,0,0,0.2); margin-bottom: 1rem;">🧬 Knowledge Graph Search System</h1>', unsafe_allow_html=True)
 
 # ---------- Sidebar Navigation ----------
 with st.sidebar:
@@ -237,9 +261,19 @@ with st.sidebar:
 # ---------- SINGLE SEARCH ----------
 if menu == "🔍 Single Node Search":
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    st.header("🔍 Single Node Search")
     
-    col1, col2 = st.columns([2, 1])
+    # Add welcome text inside the container
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h2 style="color: #667eea; margin-bottom: 0.5rem;">🔍 Explore Individual Nodes</h2>
+        <p style="color: #555; font-size: 1.1rem; margin: 0;">
+            Search for specific diseases, plants, or genetic variants (SNPs) in our knowledge graph.
+            Enter a valid ID to retrieve detailed information about the node.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 2])
     
     with col1:
         option = st.selectbox(
@@ -317,9 +351,26 @@ if menu == "🔍 Single Node Search":
 # ---------- RELATION SEARCH ----------
 elif menu == "🔗 Relationship Search":
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    st.header("🔗 Relationship Search")
     
-    col1, col2 = st.columns([2, 1])
+    # Add welcome text inside the container
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h2 style="color: #667eea; margin-bottom: 0.5rem; font-size: 2.2rem; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+            🔗 Discover Relationships
+        </h2>
+        <p style="color: #555; font-size: 1.1rem; margin: 0; font-weight: 300; line-height: 1.6;">
+            Explore connections between diseases, SNPs, and plants. 
+            Find genetic associations and therapeutic relationships in the knowledge graph.
+        </p>
+        <div style="margin-top: 1rem;">
+            <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
+                🧬 Genetic Insights
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    col1, col2 = st.columns([3, 2])
     
     with col1:
         option = st.selectbox(
@@ -479,7 +530,24 @@ elif menu == "🔗 Relationship Search":
 # ---------- ANALYTICS DASHBOARD ----------
 elif menu == "📈 Analytics Dashboard":
     st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    st.header("📈 Analytics Dashboard")
+    
+    # Add welcome text inside the container
+    st.markdown("""
+    <div style="text-align: center; margin-bottom: 2rem;">
+        <h2 style="color: #667eea; margin-bottom: 0.5rem; font-size: 2.2rem; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
+            📈 Analytics Dashboard
+        </h2>
+        <p style="color: #555; font-size: 1.1rem; margin: 0; font-weight: 300; line-height: 1.6;">
+            View comprehensive statistics and insights about the knowledge graph data. 
+            Explore node distributions, relationship patterns, and search analytics.
+        </p>
+        <div style="margin-top: 1rem;">
+            <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
+                📊 Data Intelligence
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown('<div class="info-message">📊 Analytics and insights coming soon! This dashboard will show search statistics, data distributions, and relationship patterns.</div>', unsafe_allow_html=True)
     
