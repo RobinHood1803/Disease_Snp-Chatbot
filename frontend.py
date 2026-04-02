@@ -17,14 +17,46 @@ driver = GraphDatabase.driver(uri, auth=(user, password))
 def search_node(label, node_id):
     query = f"MATCH (n:{label} {{id: $id}}) RETURN n"
     
-    with driver.session() as session:
-        result = session.run(query, {"id": node_id})
-        record = result.single()
-        
-        if record:
-            return dict(record["n"])
-        else:
-            return None
+    try:
+        with driver.session() as session:
+            result = session.run(query, {"id": node_id})
+            record = result.single()
+            
+            if record:
+                return dict(record["n"])
+            else:
+                return None
+    except Exception as e:
+        st.error(f"Database error while searching node: {str(e)}")
+        return None
+
+
+def get_analytics_data():
+    """Fetch real analytics data from the database"""
+    try:
+        with driver.session() as session:
+            # Count nodes by type
+            node_query = """
+            MATCH (n) 
+            RETURN labels(n)[0] as label, count(n) as count 
+            ORDER BY count DESC
+            """
+            node_results = session.run(node_query)
+            node_counts = {record["label"]: record["count"] for record in node_results}
+            
+            # Count relationships by type
+            rel_query = """
+            MATCH ()-[r]->() 
+            RETURN type(r) as type, count(r) as count 
+            ORDER BY count DESC
+            """
+            rel_results = session.run(rel_query)
+            rel_counts = {record["type"]: record["count"] for record in rel_results}
+            
+            return node_counts, rel_counts
+    except Exception as e:
+        st.error(f"Database error while fetching analytics: {str(e)}")
+        return {}, {}
 
 
 def search_disease_with_snps(disease_id):
@@ -32,26 +64,32 @@ def search_disease_with_snps(disease_id):
     MATCH (d:disease {id: $id})
     OPTIONAL MATCH (d)-[r:ASSOCIATED_WITH]->(s:rsid)
     RETURN d, r, s
+    LIMIT 1000
     """
 
     data = {"disease": None, "snps": []}
 
-    with driver.session() as session:
-        results = session.run(query, {"id": disease_id})
+    try:
+        with driver.session() as session:
+            results = session.run(query, {"id": disease_id})
 
-        for record in results:
-            d = record["d"]
-            r = record["r"]
-            s = record["s"]
+            for record in results:
+                d = record["d"]
+                r = record["r"]
+                s = record["s"]
 
-            if d:
-                data["disease"] = dict(d)
+                if d:
+                    data["disease"] = dict(d)
 
-            if s:
-                data["snps"].append({
-                    "snp": dict(s),
-                    "relation": dict(r) if r else {}
-                })
+                if s:
+                    data["snps"].append({
+                        "snp": dict(s),
+                        "relation": dict(r) if r else {}
+                    })
+                    
+    except Exception as e:
+        st.error(f"Database error while fetching disease data: {str(e)}")
+        return {"disease": None, "snps": []}
 
     return data
 
@@ -61,26 +99,32 @@ def search_snp_with_plants(snp_id):
     MATCH (s:rsid {id: $id})
     OPTIONAL MATCH (s)-[r:ASSOCIATED_WITH_PLANT]->(p:plant)
     RETURN s, r, p
+    LIMIT 1000
     """
 
     data = {"snp": None, "plants": []}
 
-    with driver.session() as session:
-        results = session.run(query, {"id": snp_id})
+    try:
+        with driver.session() as session:
+            results = session.run(query, {"id": snp_id})
 
-        for record in results:
-            s = record["s"]
-            r = record["r"]
-            p = record["p"]
+            for record in results:
+                s = record["s"]
+                r = record["r"]
+                p = record["p"]
 
-            if s:
-                data["snp"] = dict(s)
+                if s:
+                    data["snp"] = dict(s)
 
-            if p:
-                data["plants"].append({
-                    "plant": dict(p),
-                    "relation": dict(r) if r else {}
-                })
+                if p:
+                    data["plants"].append({
+                        "plant": dict(p),
+                        "relation": dict(r) if r else {}
+                    })
+                    
+    except Exception as e:
+        st.error(f"Database error while fetching SNP data: {str(e)}")
+        return {"snp": None, "plants": []}
 
     return data
 
@@ -551,23 +595,42 @@ elif menu == "📈 Analytics Dashboard":
     
     st.markdown('<div class="info-message">📊 Analytics and insights coming soon! This dashboard will show search statistics, data distributions, and relationship patterns.</div>', unsafe_allow_html=True)
     
-    # Placeholder for future analytics
+    # Fetch real analytics data
+    with st.spinner("📊 Loading analytics data..."):
+        node_counts, rel_counts = get_analytics_data()
+    
+    # Calculate totals
+    total_nodes = sum(node_counts.values()) if node_counts else 47625
+    total_relationships = sum(rel_counts.values()) if rel_counts else 304464
+    
+    # Display metrics
     col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Total Nodes", "47,625", "📈")
+        st.metric("Total Nodes", f"{total_nodes:,}", "📈")
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col2:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Total Relationships", "304,464", "🔗")
+        st.metric("Total Relationships", f"{total_relationships:,}", "🔗")
         st.markdown('</div>', unsafe_allow_html=True)
     
     with col3:
         st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-        st.metric("Data Categories", "3", "📂")
+        st.metric("Data Categories", len(node_counts) if node_counts else 3, "📂")
         st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Show detailed breakdowns if data is available
+    if node_counts:
+        st.markdown("### 📊 Node Distribution")
+        node_df = pd.DataFrame(list(node_counts.items()), columns=["Node Type", "Count"])
+        st.dataframe(node_df, use_container_width=True, hide_index=True)
+    
+    if rel_counts:
+        st.markdown("### 🔗 Relationship Distribution")
+        rel_df = pd.DataFrame(list(rel_counts.items()), columns=["Relationship Type", "Count"])
+        st.dataframe(rel_df, use_container_width=True, hide_index=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 
