@@ -4,6 +4,8 @@ import pandas as pd
 from datetime import datetime
 import re
 
+from reverse_relation import search_plant_to_snps, search_snp_to_diseases
+
 # ---------- Neo4j Connection ----------
 uri = "bolt://localhost:7687"
 user = "neo4j"
@@ -70,6 +72,8 @@ def init_search_stats():
                 "single_node_snp": {"attempts": 0, "success": 0},
                 "relationship_disease_to_snp": {"attempts": 0, "success": 0},
                 "relationship_snp_to_plant": {"attempts": 0, "success": 0},
+                "relationship_snp_to_disease": {"attempts": 0, "success": 0},
+                "relationship_plant_to_snp": {"attempts": 0, "success": 0},
             },
         }
 
@@ -315,7 +319,7 @@ with st.sidebar:
         - Click Search to view details
         
         **Relationship Search:**
-        - Choose relationship type
+        - Choose relationship type (forward or reverse)
         - Enter the source ID
         - View connected nodes
         
@@ -460,8 +464,13 @@ elif menu == "🔗 Relationship Search":
     with col1:
         option = st.selectbox(
             "Select Query Type",
-            ["🏥 Disease → SNP", "🧬 SNP → Plant"],
-            help="Choose the relationship direction you want to explore"
+            [
+                "🏥 Disease → SNP",
+                "🧬 SNP → Plant",
+                "🧬 SNP → Disease",
+                "🌿 Plant → SNP",
+            ],
+            help="Choose the relationship direction you want to explore (including reverse lookups)",
         )
         
         # Add context-specific examples
@@ -469,10 +478,18 @@ elif menu == "🔗 Relationship Search":
             example_id = "MESH:D012871"
             input_label = "Enter Disease ID"
             help_text = "Enter the disease ID to find associated SNPs"
-        else:
+        elif option == "🧬 SNP → Plant":
             example_id = "RS:123456"
             input_label = "Enter SNP ID"
             help_text = "Enter the SNP ID to find associated plants"
+        elif option == "🧬 SNP → Disease":
+            example_id = "RS:123456"
+            input_label = "Enter SNP ID"
+            help_text = "Enter the SNP ID to find associated diseases"
+        else:
+            example_id = "PLANT:001"
+            input_label = "Enter Plant ID"
+            help_text = "Enter the plant ID to find associated SNPs"
         
         st.markdown(f"**Example ID:** `{example_id}`")
         
@@ -660,6 +677,154 @@ elif menu == "🔗 Relationship Search":
                                 )
                     else:
                         st.markdown('<div class="error-message">❌ SNP not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
+                
+                elif option == "🧬 SNP → Disease":
+                    data = search_snp_to_diseases(
+                        input_id.strip(), limit=max_results, neo4j_driver=driver
+                    )
+                    log_search("relationship_snp_to_disease", bool(data["snp"]))
+                    
+                    if data["snp"]:
+                        st.markdown('<div class="success-message">✅ SNP and relationships found!</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                        st.subheader("🧬 SNP Details")
+                        snp_df = pd.DataFrame(list(data["snp"].items()), columns=["Property", "Value"])
+                        st.dataframe(snp_df, use_container_width=True, hide_index=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                        fetched = data["diseases"]
+                        fetched_count = len(fetched)
+                        st.subheader(f"🏥 Associated Diseases (fetched {fetched_count})")
+                        
+                        display_cap = min(fetched_count, 200)
+                        display_items = fetched[:display_cap]
+                        if display_items:
+                            summary_rows = []
+                            for item in display_items:
+                                dprops = item.get("disease") or {}
+                                summary_rows.append({
+                                    "disease_id": dprops.get("id"),
+                                    "has_relation": bool(item.get("relation")),
+                                })
+                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                            
+                            st.markdown("---")
+                            st.markdown("**Disease Details (sample)**")
+                            detail_cap = min(display_cap, 10)
+                            for i, item in enumerate(display_items[:detail_cap], 1):
+                                st.markdown(f"**Disease {i}:**")
+                                dis_df = pd.DataFrame(list(item["disease"].items()), columns=["Property", "Value"])
+                                st.dataframe(dis_df, use_container_width=True, hide_index=True)
+                                if item["relation"]:
+                                    st.markdown("**🔗 Relationship Attributes:**")
+                                    rel_df = pd.DataFrame(list(item["relation"].items()), columns=["Property", "Value"])
+                                    st.dataframe(rel_df, use_container_width=True, hide_index=True)
+                                if i < detail_cap:
+                                    st.markdown("---")
+                        else:
+                            st.markdown('<div class="warning-message">⚠️ No associated diseases found for this SNP.</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        if st.button("📥 Export Results (first 200)", use_container_width=True, key="export_snp_disease"):
+                            export_cap = min(len(data["diseases"]), 200)
+                            if len(data["diseases"]) > export_cap:
+                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+                            export_data = []
+                            for item in data["diseases"][:export_cap]:
+                                row = {**data["snp"], **item["disease"]}
+                                if item["relation"]:
+                                    row.update({f"rel_{k}": v for k, v in item["relation"].items()})
+                                export_data.append(row)
+                            if export_data:
+                                export_df = pd.DataFrame(export_data)
+                                csv = export_df.to_csv(index=False)
+                                st.download_button(
+                                    label="Download CSV",
+                                    data=csv,
+                                    file_name=f"snp_disease_relationships_{input_id}.csv",
+                                    mime="text/csv",
+                                    key="dl_snp_disease",
+                                )
+                    else:
+                        st.markdown('<div class="error-message">❌ SNP not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
+                
+                elif option == "🌿 Plant → SNP":
+                    data = search_plant_to_snps(
+                        input_id.strip(), limit=max_results, neo4j_driver=driver
+                    )
+                    log_search("relationship_plant_to_snp", bool(data["plant"]))
+                    
+                    if data["plant"]:
+                        st.markdown('<div class="success-message">✅ Plant and relationships found!</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                        st.subheader("🌿 Plant Details")
+                        plant_df = pd.DataFrame(list(data["plant"].items()), columns=["Property", "Value"])
+                        st.dataframe(plant_df, use_container_width=True, hide_index=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('<div class="result-card">', unsafe_allow_html=True)
+                        fetched = data["snps"]
+                        fetched_count = len(fetched)
+                        st.subheader(f"🧬 Associated SNPs (fetched {fetched_count})")
+                        
+                        display_cap = min(fetched_count, 200)
+                        display_items = fetched[:display_cap]
+                        if display_items:
+                            summary_rows = []
+                            for item in display_items:
+                                sprops = item.get("snp") or {}
+                                summary_rows.append({
+                                    "snp_id": sprops.get("id"),
+                                    "has_relation": bool(item.get("relation")),
+                                })
+                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
+                            
+                            st.markdown("---")
+                            st.markdown("**SNP Details (sample)**")
+                            detail_cap = min(display_cap, 10)
+                            for i, item in enumerate(display_items[:detail_cap], 1):
+                                st.markdown(f"**SNP {i}:**")
+                                snp_df = pd.DataFrame(list(item["snp"].items()), columns=["Property", "Value"])
+                                st.dataframe(snp_df, use_container_width=True, hide_index=True)
+                                if item["relation"]:
+                                    st.markdown("**🔗 Relationship Attributes:**")
+                                    rel_df = pd.DataFrame(list(item["relation"].items()), columns=["Property", "Value"])
+                                    st.dataframe(rel_df, use_container_width=True, hide_index=True)
+                                if i < detail_cap:
+                                    st.markdown("---")
+                        else:
+                            st.markdown('<div class="warning-message">⚠️ No associated SNPs found for this plant.</div>', unsafe_allow_html=True)
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        
+                        if st.button("📥 Export Results (first 200)", use_container_width=True, key="export_plant_snp"):
+                            export_cap = min(len(data["snps"]), 200)
+                            if len(data["snps"]) > export_cap:
+                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+                            export_data = []
+                            for item in data["snps"][:export_cap]:
+                                row = {**data["plant"], **item["snp"]}
+                                if item["relation"]:
+                                    row.update({f"rel_{k}": v for k, v in item["relation"].items()})
+                                export_data.append(row)
+                            if export_data:
+                                export_df = pd.DataFrame(export_data)
+                                csv = export_df.to_csv(index=False)
+                                st.download_button(
+                                    label="Download CSV",
+                                    data=csv,
+                                    file_name=f"plant_snp_relationships_{input_id}.csv",
+                                    mime="text/csv",
+                                    key="dl_plant_snp",
+                                )
+                    else:
+                        st.markdown('<div class="error-message">❌ Plant not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
 

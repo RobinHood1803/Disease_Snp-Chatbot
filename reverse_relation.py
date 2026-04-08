@@ -4,81 +4,120 @@ uri = "bolt://localhost:7687"   # change to Aura later if needed
 user = "neo4j"
 password = "Sonal@2004"
 
-driver = GraphDatabase.driver(uri, auth=(user, password))
+_driver = None
 
 
-def search_snp_to_diseases(snp_id):
+def _default_driver():
+    global _driver
+    if _driver is None:
+        _driver = GraphDatabase.driver(uri, auth=(user, password))
+    return _driver
+
+
+def search_snp_to_diseases(snp_id, limit=200, neo4j_driver=None):
+    """
+    Reverse of Disease → SNP: find diseases linked to a given SNP (rsid).
+    Returns { "snp": dict|None, "diseases": [ { "disease": dict, "relation": dict }, ... ] }
+    """
+    drv = neo4j_driver or _default_driver()
     query = """
-    MATCH (d:disease)-[r:ASSOCIATED_WITH]->(s:rsid {id: $id})
+    MATCH (s:rsid {id: $id})
+    OPTIONAL MATCH (d:disease)-[r:ASSOCIATED_WITH]->(s)
     RETURN s, r, d
+    LIMIT $limit
     """
 
-    with driver.session() as session:
-        results = session.run(query, {"id": snp_id})
+    data = {"snp": None, "diseases": []}
 
-        found = False
+    with drv.session() as session:
+        results = session.run(query, {"id": snp_id, "limit": limit})
 
         for record in results:
             s = record["s"]
             d = record["d"]
             r = record["r"]
 
-            if not found:
-                if s:
-                    print("\n=== SNP Details ===")
-                    for key, value in dict(s).items():
-                        print(f"{key}: {value}")
-                    found = True
-                else:
-                    print("SNP not found")
-                    return
+            if s and data["snp"] is None:
+                data["snp"] = dict(s)
 
             if d:
-                print("\n--- Associated Disease ---")
-                for key, value in dict(d).items():
-                    print(f"{key}: {value}")
+                data["diseases"].append({
+                    "disease": dict(d),
+                    "relation": dict(r) if r else {},
+                })
 
-                if r:
-                    print("Relationship Attributes:")
-                    for key, value in dict(r).items():
-                        print(f"{key}: {value}")
+    return data
 
 
-def search_plant_to_snps(plant_id):
+def search_plant_to_snps(plant_id, limit=200, neo4j_driver=None):
+    """
+    Reverse of SNP → Plant: find SNPs linked to a given plant.
+    Returns { "plant": dict|None, "snps": [ { "snp": dict, "relation": dict }, ... ] }
+    """
+    drv = neo4j_driver or _default_driver()
     query = """
-    MATCH (s:rsid)-[r:ASSOCIATED_WITH_PLANT]->(p:plant {id: $id})
+    MATCH (p:plant {id: $id})
+    OPTIONAL MATCH (s:rsid)-[r:ASSOCIATED_WITH_PLANT]->(p)
     RETURN p, r, s
+    LIMIT $limit
     """
 
-    with driver.session() as session:
-        results = session.run(query, {"id": plant_id})
+    data = {"plant": None, "snps": []}
 
-        found = False
+    with drv.session() as session:
+        results = session.run(query, {"id": plant_id, "limit": limit})
 
         for record in results:
             p = record["p"]
             s = record["s"]
             r = record["r"]
 
-            if not found:
-                if p:
-                    print("\n=== Plant Details ===")
-                    for key, value in dict(p).items():
-                        print(f"{key}: {value}")
-                    found = True
-                else:
-                    print("Plant not found")
-                    return
+            if p and data["plant"] is None:
+                data["plant"] = dict(p)
 
             if s:
-                print("\n--- Associated SNP ---")
-                for key, value in dict(s).items():
-                    print(f"{key}: {value}")
+                data["snps"].append({
+                    "snp": dict(s),
+                    "relation": dict(r) if r else {},
+                })
 
-                if r:
-                    print("Relationship Attributes:")
-                    for key, value in dict(r).items():
-                        print(f"{key}: {value}")
+    return data
+
+
+def _print_snp_to_diseases(snp_id, limit=200):
+    data = search_snp_to_diseases(snp_id, limit=limit)
+    if not data["snp"]:
+        print("SNP not found")
+        return
+    print("\n=== SNP Details ===")
+    for key, value in data["snp"].items():
+        print(f"{key}: {value}")
+    for item in data["diseases"]:
+        print("\n--- Associated Disease ---")
+        for key, value in item["disease"].items():
+            print(f"{key}: {value}")
+        if item["relation"]:
+            print("Relationship Attributes:")
+            for key, value in item["relation"].items():
+                print(f"{key}: {value}")
+
+
+def _print_plant_to_snps(plant_id, limit=200):
+    data = search_plant_to_snps(plant_id, limit=limit)
+    if not data["plant"]:
+        print("Plant not found")
+        return
+    print("\n=== Plant Details ===")
+    for key, value in data["plant"].items():
+        print(f"{key}: {value}")
+    for item in data["snps"]:
+        print("\n--- Associated SNP ---")
+        for key, value in item["snp"].items():
+            print(f"{key}: {value}")
+        if item["relation"]:
+            print("Relationship Attributes:")
+            for key, value in item["relation"].items():
+                print(f"{key}: {value}")
 
 
 def main():
@@ -90,16 +129,19 @@ def main():
 
     if choice == "1":
         snp_id = input("Enter SNP id: ").strip()
-        search_snp_to_diseases(snp_id)
+        _print_snp_to_diseases(snp_id)
 
     elif choice == "2":
         plant_id = input("Enter Plant id: ").strip()
-        search_plant_to_snps(plant_id)
+        _print_plant_to_snps(plant_id)
 
     else:
         print("Invalid choice")
 
 
 if __name__ == "__main__":
-    main()
-    driver.close()
+    try:
+        main()
+    finally:
+        if _driver is not None:
+            _driver.close()
