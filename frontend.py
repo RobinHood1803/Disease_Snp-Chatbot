@@ -414,15 +414,15 @@ if menu == "🔍 Single Node Search":
                     df = pd.DataFrame(list(result.items()), columns=["Property", "Value"])
                     st.dataframe(df, use_container_width=True, hide_index=True)
                     
-                    # Add export functionality
-                    if st.button("📥 Export Results", use_container_width=True):
-                        csv = df.to_csv(index=False)
-                        st.download_button(
-                            label="Download CSV",
-                            data=csv,
-                            file_name=f"{option.replace(' ', '_').lower()}_{node_id}.csv",
-                            mime="text/csv"
-                        )
+                    # Direct CSV download button (single click)
+                    csv = df.to_csv(index=False)
+                    st.download_button(
+                        label="⬇️ Download CSV",
+                        data=csv,
+                        file_name=f"{option.replace(' ', '_').lower()}_{node_id}.csv",
+                        mime="text/csv",
+                        use_container_width=True,
+                    )
                     
                     st.markdown('</div>', unsafe_allow_html=True)
                 else:
@@ -571,29 +571,29 @@ elif menu == "🔗 Relationship Search":
                         
                         st.markdown('</div>', unsafe_allow_html=True)
                         
-                        # Export functionality
-                        if st.button("📥 Export Results (first 200)", use_container_width=True):
-                            # Create combined data for export
-                            export_data = []
-                            export_cap = min(len(data["snps"]), 200)
-                            if len(data["snps"]) > export_cap:
-                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+                        # Direct CSV download button (single click)
+                        export_data = []
+                        export_cap = min(len(data["snps"]), 200)
+                        if len(data["snps"]) > export_cap:
+                            st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
 
-                            for item in data["snps"][:export_cap]:
-                                row = {**data["disease"], **item["snp"]}
-                                if item["relation"]:
-                                    row.update({f"rel_{k}": v for k, v in item["relation"].items()})
-                                export_data.append(row)
-                            
-                            if export_data:
-                                export_df = pd.DataFrame(export_data)
-                                csv = export_df.to_csv(index=False)
-                                st.download_button(
-                                    label="Download CSV",
-                                    data=csv,
-                                    file_name=f"disease_snp_relationships_{input_id}.csv",
-                                    mime="text/csv"
-                                )
+                        for item in data["snps"][:export_cap]:
+                            row = {**data["disease"], **item["snp"]}
+                            if item["relation"]:
+                                row.update({f"rel_{k}": v for k, v in item["relation"].items()})
+                            export_data.append(row)
+                        
+                        if export_data:
+                            export_df = pd.DataFrame(export_data)
+                            csv = export_df.to_csv(index=False)
+                            st.download_button(
+                                label="⬇️ Download CSV (first 200)",
+                                data=csv,
+                                file_name=f"disease_snp_relationships_{input_id}.csv",
+                                mime="text/csv",
+                                use_container_width=True,
+                                key="dl_disease_snp",
+                            )
                     else:
                         st.markdown('<div class="error-message">❌ Disease not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
                 
@@ -653,28 +653,29 @@ elif menu == "🔗 Relationship Search":
                         
                         st.markdown('</div>', unsafe_allow_html=True)
                         
-                        # Export functionality
-                        if st.button("📥 Export Results (first 200)", use_container_width=True):
-                            export_cap = min(len(data["plants"]), 200)
-                            if len(data["plants"]) > export_cap:
-                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+                        # Direct CSV download button (single click)
+                        export_cap = min(len(data["plants"]), 200)
+                        if len(data["plants"]) > export_cap:
+                            st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
 
-                            export_data = []
-                            for item in data["plants"][:export_cap]:
-                                row = {**data["snp"], **item["plant"]}
-                                if item["relation"]:
-                                    row.update({f"rel_{k}": v for k, v in item["relation"].items()})
-                                export_data.append(row)
-                            
-                            if export_data:
-                                export_df = pd.DataFrame(export_data)
-                                csv = export_df.to_csv(index=False)
-                                st.download_button(
-                                    label="Download CSV",
-                                    data=csv,
-                                    file_name=f"snp_plant_relationships_{input_id}.csv",
-                                    mime="text/csv"
-                                )
+                        export_data = []
+                        for item in data["plants"][:export_cap]:
+                            row = {**data["snp"], **item["plant"]}
+                            if item["relation"]:
+                                row.update({f"rel_{k}": v for k, v in item["relation"].items()})
+                            export_data.append(row)
+                        
+                        if export_data:
+                            export_df = pd.DataFrame(export_data)
+                            csv = export_df.to_csv(index=False)
+                            st.download_button(
+                                label="⬇️ Download CSV (first 200)",
+                                data=csv,
+                                file_name=f"snp_plant_relationships_{input_id}.csv",
+                                mime="text/csv",
+                                use_container_width=True,
+                                key="dl_snp_plant",
+                            )
                     else:
                         st.markdown('<div class="error-message">❌ SNP not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
                 
@@ -729,26 +730,26 @@ elif menu == "🔗 Relationship Search":
                         
                         st.markdown('</div>', unsafe_allow_html=True)
                         
-                        if st.button("📥 Export Results (first 200)", use_container_width=True, key="export_snp_disease"):
-                            export_cap = min(len(data["diseases"]), 200)
-                            if len(data["diseases"]) > export_cap:
-                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
-                            export_data = []
-                            for item in data["diseases"][:export_cap]:
-                                row = {**data["snp"], **item["disease"]}
-                                if item["relation"]:
-                                    row.update({f"rel_{k}": v for k, v in item["relation"].items()})
-                                export_data.append(row)
-                            if export_data:
-                                export_df = pd.DataFrame(export_data)
-                                csv = export_df.to_csv(index=False)
-                                st.download_button(
-                                    label="Download CSV",
-                                    data=csv,
-                                    file_name=f"snp_disease_relationships_{input_id}.csv",
-                                    mime="text/csv",
-                                    key="dl_snp_disease",
-                                )
+                        export_cap = min(len(data["diseases"]), 200)
+                        if len(data["diseases"]) > export_cap:
+                            st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+                        export_data = []
+                        for item in data["diseases"][:export_cap]:
+                            row = {**data["snp"], **item["disease"]}
+                            if item["relation"]:
+                                row.update({f"rel_{k}": v for k, v in item["relation"].items()})
+                            export_data.append(row)
+                        if export_data:
+                            export_df = pd.DataFrame(export_data)
+                            csv = export_df.to_csv(index=False)
+                            st.download_button(
+                                label="⬇️ Download CSV (first 200)",
+                                data=csv,
+                                file_name=f"snp_disease_relationships_{input_id}.csv",
+                                mime="text/csv",
+                                key="dl_snp_disease",
+                                use_container_width=True,
+                            )
                     else:
                         st.markdown('<div class="error-message">❌ SNP not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
                 
@@ -803,26 +804,26 @@ elif menu == "🔗 Relationship Search":
                         
                         st.markdown('</div>', unsafe_allow_html=True)
                         
-                        if st.button("📥 Export Results (first 200)", use_container_width=True, key="export_plant_snp"):
-                            export_cap = min(len(data["snps"]), 200)
-                            if len(data["snps"]) > export_cap:
-                                st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
-                            export_data = []
-                            for item in data["snps"][:export_cap]:
-                                row = {**data["plant"], **item["snp"]}
-                                if item["relation"]:
-                                    row.update({f"rel_{k}": v for k, v in item["relation"].items()})
-                                export_data.append(row)
-                            if export_data:
-                                export_df = pd.DataFrame(export_data)
-                                csv = export_df.to_csv(index=False)
-                                st.download_button(
-                                    label="Download CSV",
-                                    data=csv,
-                                    file_name=f"plant_snp_relationships_{input_id}.csv",
-                                    mime="text/csv",
-                                    key="dl_plant_snp",
-                                )
+                        export_cap = min(len(data["snps"]), 200)
+                        if len(data["snps"]) > export_cap:
+                            st.warning(f"Export is limited to the first {export_cap} results to avoid large downloads.")
+                        export_data = []
+                        for item in data["snps"][:export_cap]:
+                            row = {**data["plant"], **item["snp"]}
+                            if item["relation"]:
+                                row.update({f"rel_{k}": v for k, v in item["relation"].items()})
+                            export_data.append(row)
+                        if export_data:
+                            export_df = pd.DataFrame(export_data)
+                            csv = export_df.to_csv(index=False)
+                            st.download_button(
+                                label="⬇️ Download CSV (first 200)",
+                                data=csv,
+                                file_name=f"plant_snp_relationships_{input_id}.csv",
+                                mime="text/csv",
+                                key="dl_plant_snp",
+                                use_container_width=True,
+                            )
                     else:
                         st.markdown('<div class="error-message">❌ Plant not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
     
