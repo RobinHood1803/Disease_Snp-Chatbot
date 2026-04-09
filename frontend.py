@@ -3,7 +3,7 @@ from neo4j import GraphDatabase
 import pandas as pd
 from datetime import datetime
 import re
-
+#importing the reverse relation functions
 from reverse_relation import search_plant_to_snps, search_snp_to_diseases
 
 # ---------- Neo4j Connection ----------
