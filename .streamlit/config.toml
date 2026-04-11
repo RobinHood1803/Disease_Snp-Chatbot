@@ -1,0 +1,10 @@
+# Single consistent light UI (ignores browser / menu dark preference for this app)
+[theme]
+base = "light"
+primaryColor = "#667eea"
+backgroundColor = "#f0f2f6"
+secondaryBackgroundColor = "#ffffff"
+textColor = "#31333F"
+
+[browser]
+gatherUsageStats = false

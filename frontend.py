@@ -163,125 +163,194 @@ def search_snp_with_plants(snp_id, limit=200):
 
 # ---------- UI Configuration ----------
 st.set_page_config(
-    page_title="Knowledge Graph Search System",
+    page_title="SNP–Disease–Plant chatbox",
     page_icon="🧬",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded",
 )
 
-# Custom CSS for better styling
-st.markdown("""
+# Light-only accent styling (theme is locked via .streamlit/config.toml)
+st.markdown(
+    """
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        color: #667eea;
-        text-align: center;
-        margin-bottom: 2rem;
-        padding: 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+    :root {
+        --chat-accent: #667eea;
+        --chat-accent-2: #764ba2;
+        --chat-border: rgba(49, 51, 63, 0.12);
+        --chat-text: #31333f;
+        --chat-text-soft: #5c6077;
+        --chat-heading: #1a1d2e;
     }
-    .search-container {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-        padding: 2rem;
-        border-radius: 15px;
-        box-shadow: 0 4px 20px rgba(102, 126, 234, 0.1);
-        margin: 1rem 0;
-        border: 1px solid rgba(102, 126, 234, 0.2);
+    html, body, .stApp {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Helvetica, Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+    .stApp,
+    [data-testid="stAppViewContainer"],
+    [data-testid="stAppViewContainer"] .main,
+    [data-testid="stAppViewContainer"] .stMain {
+        background-color: #f0f2f6 !important;
+        color: var(--chat-text) !important;
+    }
+    [data-testid="stAppViewContainer"] .main .block-container {
+        padding-top: 1rem;
+        background-color: transparent !important;
+        max-width: 1200px;
+    }
+    header[data-testid="stHeader"] {
+        background-color: #f0f2f6 !important;
+    }
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff !important;
+        border-right: 1px solid var(--chat-border);
+    }
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
+    section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] label,
+    [data-testid="stWidgetLabel"] p,
+    [data-testid="stWidgetLabel"] label,
+    .stWidgetLabel p {
+        color: #31333f !important;
+    }
+    .main h1 {
+        font-weight: 700 !important;
+        letter-spacing: -0.03em !important;
+        line-height: 1.12 !important;
+        color: var(--chat-heading) !important;
+    }
+    .main h2, .main h3 {
+        font-weight: 600 !important;
+        letter-spacing: -0.018em !important;
+        line-height: 1.28 !important;
+        color: #252836 !important;
+    }
+    .main h4, .main h5, .main h6 {
+        color: var(--chat-text) !important;
+        font-weight: 600 !important;
+    }
+    .main [data-testid="stMarkdownContainer"] p {
+        font-size: 1.0625rem;
+        line-height: 1.68;
+        color: var(--chat-text-soft);
+        margin: 0 0 0.75rem 0;
+    }
+    .main [data-testid="stMarkdownContainer"] li {
+        font-size: 1.02rem;
+        line-height: 1.6;
+        color: var(--chat-text-soft);
+        margin-bottom: 0.35rem;
+    }
+    .main [data-testid="stMarkdownContainer"] strong {
+        color: var(--chat-text);
+        font-weight: 600;
+    }
+    .main .stCaption,
+    .main [data-testid="stCaption"] {
+        color: var(--chat-text-soft) !important;
+        font-size: 1.05rem !important;
+        line-height: 1.55 !important;
     }
     .result-card {
-        background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+        background: #ffffff;
         padding: 1.5rem;
         border-radius: 12px;
-        box-shadow: 0 4px 15px rgba(252, 182, 159, 0.2);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         margin: 1rem 0;
-        border-left: 4px solid #667eea;
-        border: 1px solid rgba(252, 182, 159, 0.3);
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        border-left: 4px solid var(--chat-accent);
     }
     .success-message {
         background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
         color: #0d5d0d;
-        padding: 1rem;
-        border-radius: 8px;
+        padding: 1rem 1.15rem;
+        border-radius: 10px;
         border: 1px solid rgba(150, 230, 161, 0.5);
-        box-shadow: 0 2px 10px rgba(150, 230, 161, 0.2);
+        font-size: 1.02rem;
+        line-height: 1.5;
+        font-weight: 500;
     }
     .error-message {
         background: linear-gradient(135deg, #feb692 0%, #ea5455 100%);
         color: #ffffff;
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid rgba(234, 84, 85, 0.5);
-        box-shadow: 0 2px 10px rgba(234, 84, 85, 0.2);
+        padding: 1rem 1.15rem;
+        border-radius: 10px;
+        border: 1px solid rgba(234, 84, 85, 0.4);
+        font-size: 1.02rem;
+        line-height: 1.5;
+        font-weight: 500;
     }
     .warning-message {
         background: linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%);
         color: #2d3436;
-        padding: 1rem;
-        border-radius: 8px;
+        padding: 1rem 1.15rem;
+        border-radius: 10px;
         border: 1px solid rgba(253, 203, 110, 0.5);
-        box-shadow: 0 2px 10px rgba(253, 203, 110, 0.2);
+        font-size: 1.02rem;
+        line-height: 1.5;
+        font-weight: 500;
     }
     .info-message {
         background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
         color: #2d3436;
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid rgba(254, 214, 227, 0.5);
-        box-shadow: 0 2px 10px rgba(168, 237, 234, 0.2);
+        padding: 1rem 1.15rem;
+        border-radius: 10px;
+        border: 1px solid var(--chat-border);
+        font-size: 1.02rem;
+        line-height: 1.55;
+        font-weight: 500;
     }
     .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
+        background: linear-gradient(135deg, var(--chat-accent) 0%, var(--chat-accent-2) 100%);
+        color: #ffffff;
         padding: 1.5rem;
         border-radius: 15px;
         text-align: center;
         margin: 0.5rem 0;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-        border: 1px solid rgba(118, 75, 162, 0.3);
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.25);
     }
     .sidebar-header {
-        font-size: 1.3rem;
+        font-size: 1.28rem;
         font-weight: 600;
-        color: #667eea;
-        margin-bottom: 1rem;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
+        letter-spacing: -0.02em;
+        color: var(--chat-heading);
+        margin-bottom: 0.75rem;
     }
-    .search-button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border: none;
-        padding: 0.75rem 2rem;
-        border-radius: 25px;
-        font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] li {
+        font-size: 0.97rem;
+        line-height: 1.55;
+        color: var(--chat-text-soft);
     }
-    .search-button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-    }
-    /* Remove default Streamlit white background */
-    .stApp {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-    }
-    /* Style dataframes to blend with theme */
     .dataframe {
-        background: rgba(255, 255, 255, 0.1);
         border-radius: 8px;
-        overflow: hidden;
+    }
+    /* Footer: keep support emails on one line (scroll on very narrow viewports) */
+    .footer-support-wrap {
+        white-space: nowrap;
+        overflow-x: auto;
+        font-size: 0.875rem;
+        color: #6c6c7a;
+        margin: 0;
+        line-height: 1.4;
+        text-align: right;
+        -webkit-overflow-scrolling: touch;
+    }
+    .footer-support-wrap a {
+        color: #1c7ed6;
+        text-decoration: none;
+    }
+    .footer-support-wrap a:hover {
+        text-decoration: underline;
     }
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
-st.markdown('<h1 class="main-header" style="font-size: 3rem; font-weight: 800; text-shadow: 3px 3px 6px rgba(0,0,0,0.2); margin-bottom: 1rem;">🧬 Knowledge Graph Search System</h1>', unsafe_allow_html=True)
+st.title("🧬 SNP–Disease–Plant chatbox")
+st.caption(
+    "Look up diseases, SNPs, and plants or follow how they link together in one calm, focused workspace."
+)
 
 # ---------- Sidebar Navigation ----------
 with st.sidebar:
@@ -296,16 +365,17 @@ with st.sidebar:
     st.markdown("### 📊 Quick Stats")
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Total Searches", f"{_total_attempts:,}", help="Total searches performed")
+        st.metric("Total searches", f"{_total_attempts:,}", help="Every search you run in this session.")
     with col2:
-        st.metric("Success Rate", f"{_success_rate:.1f}%", help="Search success rate")
+        st.metric("Success rate", f"{_success_rate:.1f}%", help="Share of searches that returned a hit.")
     
     st.markdown("---")
     
     menu = st.selectbox(
-        "Select Search Type",
+        "What would you like to do?",
         ["🔍 Single Node Search", "🔗 Relationship Search", "📈 Analytics Dashboard"],
-        index=0
+        index=0,
+        help="Switch modes anytime—your session stats stay in the sidebar.",
     )
     
     st.markdown("---")
@@ -313,27 +383,21 @@ with st.sidebar:
     
     with st.expander("📖 How to Use"):
         st.markdown("""
-        **Single Node Search:**
-        - Select node type (Disease, Plant, SNP)
-        - Enter the ID (e.g., MESH:D012871)
-        - Click Search to view details
-        
-        **Relationship Search:**
-        - Choose relationship type (forward or reverse)
-        - Enter the source ID
-        - View connected nodes
-        
-        **Analytics Dashboard:**
-        - View search statistics
-        - Explore data insights
+        **Single node**
+        - Pick **Disease**, **Plant**, or **SNP**, paste its ID, then hit **Search** to see every property on that node.
+
+        **Relationships**
+        - Choose a path (e.g. disease → SNP, plant → SNP, or reverse). Enter the **starting** ID to see what it connects to.
+
+        **Analytics**
+        - Glance at how you’ve been searching this session plus live counts from the graph.
         """)
     
     with st.expander("💡 Tips"):
         st.markdown("""
-        - Use exact IDs for better results
-        - Check the format before searching
-        - Relationship searches show connections
-        - Use the analytics dashboard for insights
+        - **IDs are picky** — copy them exactly (including prefixes like `MESH:` or `RS:`).
+        - Large result sets show a **summary table** first; expand samples below when you need detail.
+        - If a search returns nothing, try the **example ID** on the page as a sanity check.
         """)
     
     st.markdown("---")
@@ -341,26 +405,19 @@ with st.sidebar:
 
 # ---------- SINGLE SEARCH ----------
 if menu == "🔍 Single Node Search":
-    st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    
-    # Add welcome text inside the container
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 2rem;">
-        <h2 style="color: #667eea; margin-bottom: 0.5rem;">🔍 Explore Individual Nodes</h2>
-        <p style="color: #555; font-size: 1.1rem; margin: 0;">
-            Search for specific diseases, plants, or genetic variants (SNPs) in our knowledge graph.
-            Enter a valid ID to retrieve detailed information about the node.
-        </p>
-    </div>
-    """, unsafe_allow_html=True)
-    
+    st.subheader("🔍 Explore individual nodes")
+    st.markdown(
+        "Choose **disease**, **plant**, or **SNP**, paste its graph ID, and open a clean property sheet "
+        "for that node, ideal for quick lookups and spot-checking IDs."
+    )
+
     col1, col2 = st.columns([3, 2])
     
     with col1:
         option = st.selectbox(
-            "Select Node Type",
+            "What are you looking up?",
             ["🏥 Disease", "🌿 Plant", "🧬 SNP"],
-            help="Choose the type of node you want to search for"
+            help="We’ll match the ID against this node type in Neo4j.",
         )
         
         # Add input validation and examples
@@ -373,9 +430,9 @@ if menu == "🔍 Single Node Search":
         st.markdown(f"**Example ID:** `{example_ids[option]}`")
         
         node_id = st.text_input(
-            "Enter ID",
+            "Paste the node ID",
             placeholder=f"e.g., {example_ids[option]}",
-            help="Enter the exact ID of the node you want to search"
+            help="Include any prefix (e.g. MESH:, RS:) exactly as stored in the graph.",
         )
     
     with col2:
@@ -404,7 +461,10 @@ if menu == "🔍 Single Node Search":
                 log_search(query_type, bool(result))
                 
                 if result:
-                    st.markdown('<div class="success-message">✅ Node Found Successfully!</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        '<div class="success-message">✅ <strong>Found it</strong> — this node is in the graph.</div>',
+                        unsafe_allow_html=True,
+                    )
                     
                     # Display results in a better format
                     st.markdown('<div class="result-card">', unsafe_allow_html=True)
@@ -426,51 +486,38 @@ if menu == "🔍 Single Node Search":
                     
                     st.markdown('</div>', unsafe_allow_html=True)
                 else:
-                    st.markdown('<div class="error-message">❌ Node not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
+                    st.markdown(
+                        '<div class="error-message">❌ <strong>No match</strong> — that ID isn’t in the graph. Double-check spelling and prefixes.</div>',
+                        unsafe_allow_html=True,
+                    )
                     
                     # Show suggestions
-                    st.markdown("### 💡 Suggestions")
-                    st.markdown(f"- Try using the example ID: `{example_ids[option]}`")
-                    st.markdown("- Check if the ID format is correct")
-                    st.markdown("- Verify the node exists in the database")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+                    st.markdown("### 💡 Try this")
+                    st.markdown(f"- Use the sample ID on the page: `{example_ids[option]}`")
+                    st.markdown("- Confirm the **node type** you picked matches the ID (e.g. `RS:` for SNPs).")
+                    st.markdown("- If it should exist, verify it’s loaded in your Neo4j instance.")
 
 
 # ---------- RELATION SEARCH ----------
 elif menu == "🔗 Relationship Search":
-    st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    
-    # Add welcome text inside the container
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 2rem;">
-        <h2 style="color: #667eea; margin-bottom: 0.5rem; font-size: 2.2rem; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-            🔗 Discover Relationships
-        </h2>
-        <p style="color: #555; font-size: 1.1rem; margin: 0; font-weight: 300; line-height: 1.6;">
-            Explore connections between diseases, SNPs, and plants. 
-            Find genetic associations and therapeutic relationships in the knowledge graph.
-        </p>
-        <div style="margin-top: 1rem;">
-            <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
-                🧬 Genetic Insights
-            </span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
+    st.subheader("🔗 Discover relationships")
+    st.markdown(
+        "Walk the graph along curated edges: disease ↔ SNP, SNP ↔ plant, and **reverse** hops "
+        "with relationship metadata when the database stores it."
+    )
+
     col1, col2 = st.columns([3, 2])
     
     with col1:
         option = st.selectbox(
-            "Select Query Type",
+            "Which path through the graph?",
             [
                 "🏥 Disease → SNP",
                 "🧬 SNP → Plant",
                 "🧬 SNP → Disease",
                 "🌿 Plant → SNP",
             ],
-            help="Choose the relationship direction you want to explore (including reverse lookups)",
+            help="Pick the direction you care about—including reverse hops from SNP or plant.",
         )
         
         # Add context-specific examples
@@ -519,7 +566,10 @@ elif menu == "🔗 Relationship Search":
                     log_search("relationship_disease_to_snp", bool(data["disease"]))
                     
                     if data["disease"]:
-                        st.markdown('<div class="success-message">✅ Disease and relationships found!</div>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<div class="success-message">✅ <strong>Disease located</strong> — showing linked SNPs below.</div>',
+                            unsafe_allow_html=True,
+                        )
                         
                         # Display disease info
                         st.markdown('<div class="result-card">', unsafe_allow_html=True)
@@ -546,7 +596,7 @@ elif menu == "🔗 Relationship Search":
                                     "has_relation": bool(item.get("relation"))
                                 })
 
-                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            st.markdown("**Summary first** — scan the table, then peek at a few full rows below when you need every field.")
                             summary_df = pd.DataFrame(summary_rows)
                             st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
@@ -602,7 +652,10 @@ elif menu == "🔗 Relationship Search":
                     log_search("relationship_snp_to_plant", bool(data["snp"]))
                     
                     if data["snp"]:
-                        st.markdown('<div class="success-message">✅ SNP and relationships found!</div>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<div class="success-message">✅ <strong>SNP located</strong> — linked plants appear below.</div>',
+                            unsafe_allow_html=True,
+                        )
                         
                         # Display SNP info
                         st.markdown('<div class="result-card">', unsafe_allow_html=True)
@@ -628,7 +681,7 @@ elif menu == "🔗 Relationship Search":
                                     "has_relation": bool(item.get("relation"))
                                 })
 
-                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            st.markdown("**Summary first** — scan the table, then peek at a few full rows below when you need every field.")
                             summary_df = pd.DataFrame(summary_rows)
                             st.dataframe(summary_df, use_container_width=True, hide_index=True)
 
@@ -686,7 +739,10 @@ elif menu == "🔗 Relationship Search":
                     log_search("relationship_snp_to_disease", bool(data["snp"]))
                     
                     if data["snp"]:
-                        st.markdown('<div class="success-message">✅ SNP and relationships found!</div>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<div class="success-message">✅ <strong>SNP located</strong> — linked diseases appear below.</div>',
+                            unsafe_allow_html=True,
+                        )
                         
                         st.markdown('<div class="result-card">', unsafe_allow_html=True)
                         st.subheader("🧬 SNP Details")
@@ -709,7 +765,7 @@ elif menu == "🔗 Relationship Search":
                                     "disease_id": dprops.get("id"),
                                     "has_relation": bool(item.get("relation")),
                                 })
-                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            st.markdown("**Summary first** — scan the table, then peek at a few full rows below when you need every field.")
                             st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
                             
                             st.markdown("---")
@@ -760,7 +816,10 @@ elif menu == "🔗 Relationship Search":
                     log_search("relationship_plant_to_snp", bool(data["plant"]))
                     
                     if data["plant"]:
-                        st.markdown('<div class="success-message">✅ Plant and relationships found!</div>', unsafe_allow_html=True)
+                        st.markdown(
+                            '<div class="success-message">✅ <strong>Plant located</strong> — linked SNPs appear below.</div>',
+                            unsafe_allow_html=True,
+                        )
                         
                         st.markdown('<div class="result-card">', unsafe_allow_html=True)
                         st.subheader("🌿 Plant Details")
@@ -783,7 +842,7 @@ elif menu == "🔗 Relationship Search":
                                     "snp_id": sprops.get("id"),
                                     "has_relation": bool(item.get("relation")),
                                 })
-                            st.markdown("Showing a summary table. Full properties are shown for a small sample below.")
+                            st.markdown("**Summary first** — scan the table, then peek at a few full rows below when you need every field.")
                             st.dataframe(pd.DataFrame(summary_rows), use_container_width=True, hide_index=True)
                             
                             st.markdown("---")
@@ -826,33 +885,21 @@ elif menu == "🔗 Relationship Search":
                             )
                     else:
                         st.markdown('<div class="error-message">❌ Plant not found. Please check the ID and try again.</div>', unsafe_allow_html=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # ---------- ANALYTICS DASHBOARD ----------
 elif menu == "📈 Analytics Dashboard":
-    st.markdown('<div class="search-container">', unsafe_allow_html=True)
-    
-    # Add welcome text inside the container
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 2rem;">
-        <h2 style="color: #667eea; margin-bottom: 0.5rem; font-size: 2.2rem; font-weight: 700; text-shadow: 2px 2px 4px rgba(0,0,0,0.1); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">
-            📈 Analytics Dashboard
-        </h2>
-        <p style="color: #555; font-size: 1.1rem; margin: 0; font-weight: 300; line-height: 1.6;">
-            View comprehensive statistics and insights about the knowledge graph data. 
-            Explore node distributions, relationship patterns, and search analytics.
-        </p>
-        <div style="margin-top: 1rem;">
-            <span style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.9rem; font-weight: 500;">
-                📊 Data Intelligence
-            </span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown('<div class="info-message">📊 Analytics and insights coming soon! This dashboard will show search statistics, data distributions, and relationship patterns.</div>', unsafe_allow_html=True)
+    st.subheader("📈 Analytics dashboard")
+    st.markdown(
+        "A quiet overview: **this session’s** search habits up top, then **live** node and relationship "
+        "counts straight from Neo4j—handy when you want the shape of the data, not a deep query."
+    )
+
+    st.markdown(
+        '<div class="info-message">📊 <strong>Heads up</strong> — richer charts and filters will land here over time. '
+        "For now you get trustworthy counts and session stats you can act on.</div>",
+        unsafe_allow_html=True,
+    )
     
     # Session-based search analytics (tracked via st.session_state)
     init_search_stats()
@@ -861,7 +908,7 @@ elif menu == "📈 Analytics Dashboard":
     _total_success = _stats.get("total_success", 0)
     _success_rate = (float(_total_success) / _total_attempts * 100.0) if _total_attempts else 0.0
     
-    st.markdown("### 🔍 Search Usage (This Session)")
+    st.markdown("### 🔍 How you’ve searched (this session)")
     col1, col2 = st.columns(2)
     with col1:
         st.metric("Total Searches", f"{_total_attempts:,}")
@@ -923,15 +970,20 @@ elif menu == "📈 Analytics Dashboard":
         st.markdown("### 🔗 Relationship Distribution")
         rel_df = pd.DataFrame(list(rel_counts.items()), columns=["Relationship Type", "Count"])
         st.dataframe(rel_df, use_container_width=True, hide_index=True)
-    
-    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- Footer ----------
 st.markdown("---")
-col1, col2, col3 = st.columns(3)
+col1, col2, col3 = st.columns([1.15, 1.15, 1.7])
 with col1:
-    st.caption("🧬 Knowledge Graph powered by Neo4j 🚀")
+    st.caption("🧬 SNP–Disease–Plant chatbox · powered by Neo4j")
 with col2:
-    st.caption(f"⏰ Last updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    st.caption(f"⏰ Refreshed {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 with col3:
-    st.caption("📧 Support: prateek23391@iiitd.ac.in, nitesh23356@iiitd.ac.in")
+    st.markdown(
+        '<p class="footer-support-wrap">📧 Questions? '
+        '<a href="mailto:prateek23391@iiitd.ac.in">prateek23391@iiitd.ac.in</a>'
+        "&nbsp;·&nbsp;"
+        '<a href="mailto:nitesh23356@iiitd.ac.in">nitesh23356@iiitd.ac.in</a>'
+        "</p>",
+        unsafe_allow_html=True,
+    )
